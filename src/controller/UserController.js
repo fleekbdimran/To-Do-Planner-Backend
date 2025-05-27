@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
 const UsersModel = require("../models/UsersModel");
 const SendEmailUtility = require('../utilitys/SendEmailUtility');
 const OtpModel = require('../models/OtpModel');
@@ -8,41 +7,14 @@ const OtpModel = require('../models/OtpModel');
 // Create User
 exports.createUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword } = req.body;
-
-    if (password !== confirmPassword) {
-      return res.status(200).json({
-        status: "fail",
-        message: "Password and confirm password do not match",
-      });
-    }
-
-    const existingUser = await UsersModel.findOne({ email });
-    if (existingUser) {
-      return res.status(200).json({
-        status: "fail",
-        message: "Email already registered",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const result = await UsersModel.create({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-    });
-
-    res.status(200).json({
-      status: "success",
-      message: "User created successfully",
-      data: result,
-    });
+    const reqBody = req.body;
+    const user = await UsersModel.create(reqBody);
+    res.status(200).json({ status: "success", data: user });
   } catch (error) {
-    res.status(200).json({ status: "fail", message: error.message });
+    res.status(400).json({ status: "fail", message: error });
   }
 };
+
 
 // Login
 exports.Login = async (req, res) => {
@@ -52,11 +24,6 @@ exports.Login = async (req, res) => {
     const user = await UsersModel.findOne({ email });
     if (!user) {
       return res.status(200).json({ status: "fail", message: "User not found" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(200).json({ status: "fail", message: "Wrong password" });
     }
 
     const token = jwt.sign(
@@ -75,6 +42,7 @@ exports.Login = async (req, res) => {
     res.status(200).json({ status: "fail", message: error.message });
   }
 };
+
 
 // Profile Update
 exports.ProfileUpdate = async (req, res) => {
@@ -158,3 +126,33 @@ exports.OtpVerify = async (req, res) => {
         return res.status(200).json({ status: "error", message: error.message })
     }
 }
+
+
+//Reset Password
+exports.ResetPassword = async (req, res) => {
+    let email = req.body.email;
+    let otp = req.body.otp;
+    let updateStatus = 1;
+    let newPassword = req.body.password;
+
+    try {
+        let otpCheck = await OtpModel.aggregate([
+            { $match: { email: email, otp: otp, status: updateStatus } },
+            { $count: "total" }
+        ]);
+
+        if (otpCheck.length > 0) {
+            let updatePassword = await UsersModel.updateOne(
+                { email: email },
+                { password: newPassword }
+            );
+            return res.status(200).json({ status: "success", data: updatePassword });
+        } else {
+            return res.status(200).json({ status: "fail", data: "Invalid OTP" });
+        }
+
+    } catch (error) {
+        return res.status(200).json({ status: "error", message: error.message });
+    }
+};
+

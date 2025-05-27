@@ -11,6 +11,7 @@ router.post('/profile-update', AuthVerificationMiddleware, UserController.Profil
 router.get('/profile-details', AuthVerificationMiddleware, UserController.ProfileDetails);
 router.post('/recover-verify-email/:email', UserController.RecoverVerifyEmail);
 router.post('/otp-verify/:email/:otp', UserController.OtpVerify);
+router.post('/reset-password', UserController.ResetPassword);
 
 
 //Todo
